@@ -1,0 +1,2 @@
+/home/victor/.local/lib/python3.10/site-packages/idisf.cpython-310-x86_64-linux-gnu.so
+/home/victor/.local/lib/python3.10/site-packages/iDISF-1.0.egg-info

@@ -1,0 +1,63 @@
+Claro! Vamos dividir o código em blocos e explicar cada um deles:
+
+### Importações
+
+```python
+import PySimpleGUI as sg
+from PIL import Image, ImageTk
+import io
+```
+
+**Propósito:** Importa as bibliotecas necessárias. `PySimpleGUI` é usado para a interface gráfica, `PIL` (Python Imaging Library, também conhecida como `Pillow`) é usado para manipulação de imagens e `io` é usado para operações de entrada/saída em bytes.
+
+### Função `convert_to_bytes`
+
+```python
+def convert_to_bytes(file_or_bytes, resize=None):
+    ...
+```
+
+**Propósito:** Esta função converte uma imagem (dada como um caminho de arquivo ou bytes) para bytes no formato PNG. Isso é útil porque o PySimpleGUI pode exibir imagens PNG diretamente a partir de bytes. A função também permite redimensionar a imagem antes da conversão.
+
+### Função `update_displayed_image`
+
+```python
+def update_displayed_image(image_list):
+    ...
+```
+
+**Propósito:** Atualiza a imagem exibida na janela principal. Se houver imagens na lista, a primeira imagem é exibida. Se a lista estiver vazia, nenhuma imagem é exibida.
+
+### Função `view_all_images`
+
+```python
+def view_all_images(image_files):
+    ...
+```
+
+**Propósito:** Esta função cria uma nova janela que exibe todas as imagens da lista fornecida. As imagens são organizadas verticalmente e a janela permite rolagem se houver muitas imagens.
+
+### Layout Principal
+
+```python
+file_list_column = ...
+image_viewer_column = ...
+layout = ...
+```
+
+**Propósito:** Define o layout da janela principal. A janela é dividida em duas colunas: uma para listar as imagens e outra para exibir a imagem selecionada. Os botões "Add Image", "Remove Image" e "View All" também são definidos aqui.
+
+### Loop Principal
+
+```python
+window = sg.Window("Image Viewer + Editor", layout)
+image_files = []
+while True:
+    ...
+```
+
+**Propósito:** Este é o loop principal do programa. Ele cria a janela principal e espera por eventos (como botões sendo pressionados ou itens sendo selecionados na lista). Dependendo do evento, diferentes ações são executadas (por exemplo, adicionar uma imagem, remover uma imagem, visualizar todas as imagens).
+
+### Resumo
+
+O código cria uma interface gráfica que permite ao usuário adicionar imagens a uma lista, remover imagens da lista, visualizar uma imagem selecionada e visualizar todas as imagens da lista em uma nova janela. A manipulação e exibição de imagens é facilitada pela biblioteca `Pillow`.
