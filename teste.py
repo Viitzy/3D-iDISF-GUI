@@ -14,7 +14,7 @@ layout = [
     [sg.Text("", key="-IMAGE_COUNT-", visible=False)]
 ]
 
-window = sg.Window("Image Viewer", layout)
+window = sg.Window("Image Viewer ", layout)
 
 image_list = []
 current_image_index = 0
