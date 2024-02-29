@@ -3,8 +3,7 @@
 # 2021
 ##################################
 
-# from idisf import iDISF_scribbles
-import sys
+from idisf import iDISF_scribbles
 from PIL import Image, ImageTk, ImageDraw
 import numpy as np
 import tkinter as tk
@@ -17,11 +16,8 @@ import higra as hg
 import pydicom
 from pydicom.pixel_data_handlers.util import apply_modality_lut
 from cv2.ximgproc import createStructuredEdgeDetection
-
-image_path = None
-if len(sys.argv) > 1:
-    image_path = sys.argv[1]
-
+from tkinter.constants import *
+from tkinter.scrolledtext import ScrolledText
 
 try:
     from utils import get_sed_model_file
@@ -43,152 +39,152 @@ def validValue(val, valMin, valMax):
   return val
 
 
-class DicomImage():
-  def __init__(self, imagePath):
-    self.data = pydicom.dcmread(imagePath)
-    self.imagePath = imagePath
+# class DicomImage():
+#   def __init__(self, imagePath):
+#     self.data = pydicom.dcmread(imagePath)
+#     self.imagePath = imagePath
 
-  def convertImage(self):
-    arr = self.data.pixel_array.astype(np.float64) # get numpy array as representation of image data
+#   def convertImage(self):
+#     arr = self.data.pixel_array.astype(np.float64) # get numpy array as representation of image data
 
-    # pixel_array seems to be the original, non-rescaled array.
-    # If present, window center and width refer to rescaled array
-    # -> do rescaling if possible.
-    if ('RescaleIntercept' in self.data) and ('RescaleSlope' in self.data):
-      intercept = self.data.RescaleIntercept  # single value
-      slope = self.data.RescaleSlope
-      arr = slope * arr + intercept
+#     # pixel_array seems to be the original, non-rescaled array.
+#     # If present, window center and width refer to rescaled array
+#     # -> do rescaling if possible.
+#     if ('RescaleIntercept' in self.data) and ('RescaleSlope' in self.data):
+#       intercept = self.data.RescaleIntercept  # single value
+#       slope = self.data.RescaleSlope
+#       arr = slope * arr + intercept
 
-    # get default window_center and window_width values
-    wc = (arr.max() + arr.min()) / 2.0
-    ww = arr.max() - arr.min() + 1.0
+#     # get default window_center and window_width values
+#     wc = (arr.max() + arr.min()) / 2.0
+#     ww = arr.max() - arr.min() + 1.0
 
-    # overwrite with specific values from data, if available
-    if ('WindowCenter' in self.data) and ('WindowWidth' in self.data):
-      ew = self.data['WindowWidth']
-      ec = self.data['WindowCenter']
-      wc = int(ew.value[0] if ew.VM > 1 else ew.value)
-      ww = int(ec.value[0] if ec.VM > 1 else ec.value)
-    else:
-      wc = (arr.max() + arr.min()) / 2.0
-      ww = arr.max() - arr.min() + 1.0
+#     # overwrite with specific values from data, if available
+#     if ('WindowCenter' in self.data) and ('WindowWidth' in self.data):
+#       ew = self.data['WindowWidth']
+#       ec = self.data['WindowCenter']
+#       wc = int(ew.value[0] if ew.VM > 1 else ew.value)
+#       ww = int(ec.value[0] if ec.VM > 1 else ec.value)
+#     else:
+#       wc = (arr.max() + arr.min()) / 2.0
+#       ww = arr.max() - arr.min() + 1.0
 
-    return self.get_PGM_from_numpy_arr(arr, wc, ww)
+#     return self.get_PGM_from_numpy_arr(arr, wc, ww)
 
-  def get_PGM_from_numpy_arr(self, arr, wc, ww):
-    """Given a 2D numpy array as input write
-    gray-value image data in the PGM
-    format into a byte string and return it.
-    arr: single-byte unsigned int numpy array
-    note: Tkinter's PhotoImage object seems to
-    accept only single-byte data
-    """
+#   def get_PGM_from_numpy_arr(self, arr, wc, ww):
+#     """Given a 2D numpy array as input write
+#     gray-value image data in the PGM
+#     format into a byte string and return it.
+#     arr: single-byte unsigned int numpy array
+#     note: Tkinter's PhotoImage object seems to
+#     accept only single-byte data
+#     """
 
-    if arr.dtype != np.uint8:
-        raise ValueError
-    if len(arr.shape) != 2:
-        raise ValueError
+#     if arr.dtype != np.uint8:
+#         raise ValueError
+#     if len(arr.shape) != 2:
+#         raise ValueError
 
-    # array.shape is (#rows, #cols) tuple; PGM input needs this reversed
-    col_row_string = ' '.join(reversed([str(x) for x in arr.shape]))
+#     # array.shape is (#rows, #cols) tuple; PGM input needs this reversed
+#     col_row_string = ' '.join(reversed([str(x) for x in arr.shape]))
 
-    bytedata_string = '\n'.join(('P5', col_row_string, str(arr.max()),
-                                 arr.tostring()))
-    return bytedata_string
+#     bytedata_string = '\n'.join(('P5', col_row_string, str(arr.max()),
+#                                  arr.tostring()))
+#     return bytedata_string
 
-  def histogram_equalization(self, img, no_bins):
+#   def histogram_equalization(self, img, no_bins):
     
-    #img- the image as a numpy.array
-    #the appropriate number of bins, `no_bins` in the histogram is chosen by experiments, 
-    #until the contrast is convenient
+#     #img- the image as a numpy.array
+#     #the appropriate number of bins, `no_bins` in the histogram is chosen by experiments, 
+#     #until the contrast is convenient
     
-    image_hist, bins = np.histogram(img.flatten(), no_bins, normed=True)
-    csum = image_hist.cumsum() 
-    cdf_mult = np.max(img) * csum / csum[-1] # cdf multiplied by a factor
+#     image_hist, bins = np.histogram(img.flatten(), no_bins, normed=True)
+#     csum = image_hist.cumsum() 
+#     cdf_mult = np.max(img) * csum / csum[-1] # cdf multiplied by a factor
 
-    #  linear interpolation of cdf_mult to get new pixel values
-    im_new = np.interp(img.flatten(), bins[:-1],  cdf_mult)
+#     #  linear interpolation of cdf_mult to get new pixel values
+#     im_new = np.interp(img.flatten(), bins[:-1],  cdf_mult)
 
-    return im_new.reshape(img.shape), cdf_mult
+#     return im_new.reshape(img.shape), cdf_mult
   
-  def get_pl_image(self, hist_equal=False, no_bins=None):
-    #dicom_filename- a string 'filename.dcm'
-    #no_bins is the number of bins for histogram when hist_equal=False, else it is None
-    #returns the np.array that defines the z-value for the heatmap representing the dicom image
+#   def get_pl_image(self, hist_equal=False, no_bins=None):
+#     #dicom_filename- a string 'filename.dcm'
+#     #no_bins is the number of bins for histogram when hist_equal=False, else it is None
+#     #returns the np.array that defines the z-value for the heatmap representing the dicom image
     
-    dic_file=pydicom.read_file(self.imagePath)
-    img=dic_file.pixel_array#get the image as a numpy.array
-    if hist_equal and isinstance(no_bins, int):
-        img_new=self.histogram_equalization(img, no_bins)
-        img_new = img_new[0]
-        img_new=np.array(img_new, dtype=np.int16)
-        return np.flipud(img_new)
-    else:
-        return np.flipud(img)
+#     dic_file=pydicom.read_file(self.imagePath)
+#     img=dic_file.pixel_array#get the image as a numpy.array
+#     if hist_equal and isinstance(no_bins, int):
+#         img_new=self.histogram_equalization(img, no_bins)
+#         img_new = img_new[0]
+#         img_new=np.array(img_new, dtype=np.int16)
+#         return np.flipud(img_new)
+#     else:
+#         return np.flipud(img)
   
-  def getPILImage2(self):
-    image=self.get_pl_image(hist_equal=True, no_bins=255*16)
+#   def getPILImage2(self):
+#     image=self.get_pl_image(hist_equal=True, no_bins=255*16)
 
-    print("MIN: ", np.min(image), " MAX: ", np.max(image))
-    im = Image.fromarray(image)
-    return im
+#     print("MIN: ", np.min(image), " MAX: ", np.max(image))
+#     im = Image.fromarray(image)
+#     return im
   
-  def getPILImage(self, brightness_factor = 1.0):
-    """Get Image object from Python Imaging Library(PIL)
-    Manipulate image brightness using brightness_factor parameter,
-       receives a float value,
-       Default = 1.0
-       Brighter > 1.0 | Darker < 1.0 
-    """
-    if ('PixelData' not in self.data):
-        raise TypeError("Cannot show image -- DICOM dataset does not have "
-                        "pixel data")
+#   def getPILImage(self, brightness_factor = 1.0):
+#     """Get Image object from Python Imaging Library(PIL)
+#     Manipulate image brightness using brightness_factor parameter,
+#        receives a float value,
+#        Default = 1.0
+#        Brighter > 1.0 | Darker < 1.0 
+#     """
+#     if ('PixelData' not in self.data):
+#         raise TypeError("Cannot show image -- DICOM dataset does not have "
+#                         "pixel data")
 
-    """
-    bits = self.data.BitsAllocated
-    samples = self.data.SamplesPerPixel
+#     """
+#     bits = self.data.BitsAllocated
+#     samples = self.data.SamplesPerPixel
     
-    if bits == 8 and samples == 1:
-      mode = "L"
-    elif bits == 8 and samples == 3:
-      mode = "RGB"
-    elif bits == 16:
-      mode = "I;16"
-    else:
-      raise TypeError("Don't know PIL mode for %d BitsAllocated "
-                        "and %d SamplesPerPixel" % (bits, samples))
-    """
+#     if bits == 8 and samples == 1:
+#       mode = "L"
+#     elif bits == 8 and samples == 3:
+#       mode = "RGB"
+#     elif bits == 16:
+#       mode = "I;16"
+#     else:
+#       raise TypeError("Don't know PIL mode for %d BitsAllocated "
+#                         "and %d SamplesPerPixel" % (bits, samples))
+#     """
 
-    #LUTification returns ndarrays
-    #can only apply LUT if pydicom is installed
-    image = self.get_LUT_value(self.data)
+#     #LUTification returns ndarrays
+#     #can only apply LUT if pydicom is installed
+#     image = self.get_LUT_value(self.data)
 
-    # PIL size = (width, height)
-    #size = (self.data.Columns, self.data.Rows)
+#     # PIL size = (width, height)
+#     #size = (self.data.Columns, self.data.Rows)
     
-    try:
-        MIN = np.min(image)
-        MAX = np.max(image)
+#     try:
+#         MIN = np.min(image)
+#         MAX = np.max(image)
 
-        image = (image - MIN)*((255.0 - 0)/(MAX - MIN))
-        #image = ((image - MIN)/np.max(image)) * 255
-        image = image.astype(np.uint8)
-        im = Image.fromarray(image)#.convert(mode)
+#         image = (image - MIN)*((255.0 - 0)/(MAX - MIN))
+#         #image = ((image - MIN)/np.max(image)) * 255
+#         image = image.astype(np.uint8)
+#         im = Image.fromarray(image)#.convert(mode)
 
-    except:
-        #When pixel data has multiple frames, output the first one
-        MIN = np.min(image[0])
-        MAX = np.max(image[0])
+#     except:
+#         #When pixel data has multiple frames, output the first one
+#         MIN = np.min(image[0])
+#         MAX = np.max(image[0])
         
-        image = (image[0] - MIN)*((255.0 - 0)/(MAX - MIN))
-        #image = ((image - MIN)/np.max(image)) * 255
-        image = image.astype(np.uint8)
-        im = Image.fromarray(image)#.convert(mode)
+#         image = (image[0] - MIN)*((255.0 - 0)/(MAX - MIN))
+#         #image = ((image - MIN)/np.max(image)) * 255
+#         image = image.astype(np.uint8)
+#         im = Image.fromarray(image)#.convert(mode)
 
-    return im
+#     return im
 
-  def get_LUT_value(self, data):
-    return apply_modality_lut(data.pixel_array,data)
+#   def get_LUT_value(self, data):
+#     return apply_modality_lut(data.pixel_array,data)
     
 
 class AutoScrollbar(ttk.Scrollbar):
@@ -206,9 +202,9 @@ class AutoScrollbar(ttk.Scrollbar):
   def place(self, **kw):
     raise tk.TclError('Cannot use place with the widget ' + self.__class__.__name__)
 
-#########################################################################
-#     Default Windows class
-#########################################################################
+# #########################################################################
+# #     Default Windows class
+# #########################################################################
 class DefaultWindow:
   def __init__(self, root, titlePage):
     # init app
@@ -540,9 +536,9 @@ class PopupSpinbox(DefaultWindow):
       messagebox.showerror("Error", "Invalid value.")
 
 
-#########################################################################
-#     Windows settings class
-#########################################################################
+# #########################################################################
+# #     Windows settings class
+# #########################################################################
 class SettingsWindow(DefaultWindow):
   def __init__(self, root, *args, **kwargs):
     ##-----------------------------------------
@@ -610,7 +606,7 @@ class SettingsWindow(DefaultWindow):
 
     self.__initMenu_windSettings__()
     self.__initSettingFrame_windSettings__(self.frame, 0, 0, 1)
-    self.__initShowFrame_windSettings__(self.frame, 1, 0, 1)
+    # self.__initShowFrame_windSettings__(self.frame, 1, 0, 1)
     self.__initBindEvents_windSettings__()
 
 
@@ -891,45 +887,45 @@ class SettingsWindow(DefaultWindow):
     self.setScribblesSize(self.minScribbleSize)
       
 
-  def __initShowFrame_windSettings__(self, master, row, column, columnspan):  
-    # variables
-    self.segm = tk.IntVar()
-    self.segm.set(1)
-    self.borders = tk.IntVar()
-    self.borders.set(1)
-    self.labels = tk.IntVar()
-    self.labels.set(1)
+  # def __initShowFrame_windSettings__(self, master, row, column, columnspan):  
+  #   # variables
+  #   self.segm = tk.IntVar()
+  #   self.segm.set(1)
+  #   self.borders = tk.IntVar()
+  #   self.borders.set(1)
+  #   self.labels = tk.IntVar()
+  #   self.labels.set(1)
       
-    # save/show objects
-    self.showLabelFrame = ttk.LabelFrame(master=master, text='Show/Save')
-    self.showLabelFrame.grid(row=row, column=column, columnspan=columnspan, sticky=self.fill, padx=6, pady=4)
-    self.createWidgets(self.showLabelFrame)
+  #   # save/show objects
+  #   self.showLabelFrame = ttk.LabelFrame(master=master, text='Show/Save')
+  #   self.showLabelFrame.grid(row=row, column=column, columnspan=columnspan, sticky=self.fill, padx=6, pady=4)
+  #   self.createWidgets(self.showLabelFrame)
 
-    auxLabel = ttk.Label(master=self.showLabelFrame)
-    auxLabel.grid(row=0, column=0, columnspan=1, sticky='w', padx=4, pady=2)
-    self.createWidgets(auxLabel)
+  #   auxLabel = ttk.Label(master=self.showLabelFrame)
+  #   auxLabel.grid(row=0, column=0, columnspan=1, sticky='w', padx=4, pady=2)
+  #   self.createWidgets(auxLabel)
 
-    self.save1Btn = tk.Button(master=auxLabel, text=self.BtntextSave, image = self.iconSave, command = self.saveSegm)
-    self.save1Btn.grid(row=0, column=0, columnspan=10, sticky=tk.W, padx=0, pady=1)
+  #   self.save1Btn = tk.Button(master=auxLabel, text=self.BtntextSave, image = self.iconSave, command = self.saveSegm)
+  #   self.save1Btn.grid(row=0, column=0, columnspan=10, sticky=tk.W, padx=0, pady=1)
     
-    if(self.usingTtkthemes):
-      self.checkSegm = ttk.Checkbutton(master=auxLabel, text='Segmentation', command=self.setCheckSegm, variable=self.segm)
-      self.checkBorders = ttk.Checkbutton(master=auxLabel, text='Borders', command=self.setCheckBorders, variable=self.borders)
-      self.checkLabels = ttk.Checkbutton(master=auxLabel, text='Labels', command=self.setCheckLabels, variable=self.labels)
-    else:
-      self.checkSegm = tk.Checkbutton(master=auxLabel, text='Segmentation', command=self.setCheckSegm, variable=self.segm)
-      self.checkBorders = tk.Checkbutton(master=auxLabel, text='Borders', command=self.setCheckBorders, variable=self.borders)
-      self.checkLabels = tk.Checkbutton(master=auxLabel, text='Labels', command=self.setCheckLabels, variable=self.labels)
+  #   if(self.usingTtkthemes):
+  #     self.checkSegm = ttk.Checkbutton(master=auxLabel, text='Segmentation', command=self.setCheckSegm, variable=self.segm)
+  #     self.checkBorders = ttk.Checkbutton(master=auxLabel, text='Borders', command=self.setCheckBorders, variable=self.borders)
+  #     self.checkLabels = ttk.Checkbutton(master=auxLabel, text='Labels', command=self.setCheckLabels, variable=self.labels)
+  #   else:
+  #     self.checkSegm = tk.Checkbutton(master=auxLabel, text='Segmentation', command=self.setCheckSegm, variable=self.segm)
+  #     self.checkBorders = tk.Checkbutton(master=auxLabel, text='Borders', command=self.setCheckBorders, variable=self.borders)
+  #     self.checkLabels = tk.Checkbutton(master=auxLabel, text='Labels', command=self.setCheckLabels, variable=self.labels)
     
-    self.checkSegm.grid(row=0, column=10, columnspan=10, sticky=tk.W, padx=0, pady=1)
-    self.checkBorders.grid(row=1, column=10, columnspan=10, sticky=tk.W, padx=0, pady=1)
-    self.checkLabels.grid(row=2, column=10, columnspan=10, sticky='w', padx=0, pady=1)
+  #   self.checkSegm.grid(row=0, column=10, columnspan=10, sticky=tk.W, padx=0, pady=1)
+  #   self.checkBorders.grid(row=1, column=10, columnspan=10, sticky=tk.W, padx=0, pady=1)
+  #   self.checkLabels.grid(row=2, column=10, columnspan=10, sticky='w', padx=0, pady=1)
 
-    self.save2Btn = tk.Button(master=auxLabel, text=self.BtntextSave, image = self.iconSave, command = self.saveBorders)
-    self.save2Btn.grid(row=1, column=0, columnspan=10, sticky=tk.W, padx=0, pady=1)
+  #   self.save2Btn = tk.Button(master=auxLabel, text=self.BtntextSave, image = self.iconSave, command = self.saveBorders)
+  #   self.save2Btn.grid(row=1, column=0, columnspan=10, sticky=tk.W, padx=0, pady=1)
 
-    self.save3Btn = tk.Button(master=auxLabel, text=self.BtntextSave, image = self.iconSave, command = self.saveLabels)
-    self.save3Btn.grid(row=2, column=0, columnspan=10, sticky=tk.W, padx=0, pady=1)
+  #   self.save3Btn = tk.Button(master=auxLabel, text=self.BtntextSave, image = self.iconSave, command = self.saveLabels)
+  #   self.save3Btn.grid(row=2, column=0, columnspan=10, sticky=tk.W, padx=0, pady=1)
 
 
   def __initBindEvents_windSettings__(self):
@@ -946,28 +942,28 @@ class SettingsWindow(DefaultWindow):
       
 
   
-  def clearMarkers(self):
-    if(self.appImage is not None):
-      self.appImage.clearMarkers()
-      self.appImage.clearImage()
-      self.appImage.image2Tk()  
+  # def clearMarkers(self):
+  #   if(self.appImage is not None):
+  #     self.appImage.clearMarkers()
+  #     self.appImage.clearImage()
+  #     self.appImage.image2Tk()  
 
-  # buttom event: delete the object markers 
+  # # buttom event: delete the object markers 
   def clearObjMarkers(self):
     if(self.appImage is not None):
       self.appImage.clearObjMarkers() 
 
-  # buttom event: delete the object markers
+  # # buttom event: delete the object markers
   def clearBgMarkers(self):
     if(self.appImage is not None):
       self.appImage.clearBgMarkers()
  
-  # c key released event: clear the markers and make a copy from the original image to the current image
+  # # c key released event: clear the markers and make a copy from the original image to the current image
   def clearAndUpdateImage(self, event):
     if(self.appImage is not None):
       self.appImage.clearAndUpdateImage(event)
 
-  # combobox event: change the segmentation method
+  # # combobox event: change the segmentation method
   def methodChange(self, event):
     if(self.optList.get() == 'Rem. by relevance'):
       self.setItMax(8000)
@@ -982,8 +978,8 @@ class SettingsWindow(DefaultWindow):
         self.setIt("1")
         self.itScale.set(1)
 
-  # combobox event: change the path-cost function method
-  # ["Color distance", "Gradent variation", "Gradient variation norm.", "Sum gradient variation"] 
+  # # combobox event: change the path-cost function method
+  # # ["Color distance", "Gradent variation", "Gradient variation norm.", "Sum gradient variation"] 
   def functionChange(self, event):
     if(self.funcList.get() == self.functionList[0]):
       self.setFunction(1)
@@ -1002,305 +998,305 @@ class SettingsWindow(DefaultWindow):
       self.runWatershed()
 
 
-  # call iDISF_scribbles function
-  def runiDISF(self):
-    if(self.appImage is None or self.appImage.close == True):
-      messagebox.showerror("Error", "It's necessary to upload at least one image.")
-      return
+  # # call iDISF_scribbles function
+  # def runiDISF(self):
+  #   if(self.appImage is None or self.appImage.close == True):
+  #     messagebox.showerror("Error", "It's necessary to upload at least one image.")
+  #     return
 
-    markers = self.appImage.getMarkers()
-    imgCV2 = self.appImage.getCurrentImage()
-    marker_sizes = self.appImage.getMarkerSizes()
+  #   markers = self.appImage.getMarkers()
+  #   imgCV2 = self.appImage.getCurrentImage()
+  #   marker_sizes = self.appImage.getMarkerSizes()
     
-    if(len(markers) == 0):
-      messagebox.showerror("Error", "It's necessary draw at least one scribble.")
-      return
+  #   if(len(markers) == 0):
+  #     messagebox.showerror("Error", "It's necessary draw at least one scribble.")
+  #     return
 
-    if(self.appImage.objMarkers == 0):
-      messagebox.showerror("Error", "It's necessary draw at least one object scribble.")
-      return
+  #   if(self.appImage.objMarkers == 0):
+  #     messagebox.showerror("Error", "It's necessary draw at least one object scribble.")
+  #     return
 
-    if(len(marker_sizes) == 1 and int(self.n0.get()) == 0):
-      messagebox.showerror("Error", "Set more GRID seeds or draw at least two scribbles.")
-      return
+  #   if(len(marker_sizes) == 1 and int(self.n0.get()) == 0):
+  #     messagebox.showerror("Error", "Set more GRID seeds or draw at least two scribbles.")
+  #     return
 
-    segm_method = 1
-    if(self.optList.get() == self.idisfMethodList[1]):
-      segm_method = 2
-      # no algoritmo já adiciona a nf o numero de pixels do marcador de objeto
-      max_nf = int(self.n0.get()) 
-      if(int(self.iterations.get()) > max_nf):
-        messagebox.showerror("Error", "The maximum number of final GRID trees is %d."%(max_nf))
-        return
+  #   segm_method = 1
+  #   if(self.optList.get() == self.idisfMethodList[1]):
+  #     segm_method = 2
+  #     # no algoritmo já adiciona a nf o numero de pixels do marcador de objeto
+  #     max_nf = int(self.n0.get()) 
+  #     if(int(self.iterations.get()) > max_nf):
+  #       messagebox.showerror("Error", "The maximum number of final GRID trees is %d."%(max_nf))
+  #       return
 
-    markers = np.array(markers)
-    marker_sizes = np.array(marker_sizes)
+  #   markers = np.array(markers)
+  #   marker_sizes = np.array(marker_sizes)
     
-    img = np.array(imgCV2)
-    if(len(img.shape) == 2):
-      img = np.stack((img,)*3, axis=-1)
+  #   img = np.array(imgCV2)
+  #   if(len(img.shape) == 2):
+  #     img = np.stack((img,)*3, axis=-1)
 
-    label_img = None
-    border_img = None
+  #   label_img = None
+  #   border_img = None
 
-    label_img, border_img = iDISF_scribbles(img, int(self.n0.get()), int(self.iterations.get()), markers, marker_sizes, self.appImage.objMarkers, int(self.function.get()), float(self.c1.get()), float(self.c2.get()), segm_method, self.bordersValue.get())
-    self.destroyDefaultWindows()
-    # label_img : 1 no objeto e 2 no fundo
+  #   label_img, border_img = iDISF_scribbles(img, int(self.n0.get()), int(self.iterations.get()), markers, marker_sizes, self.appImage.objMarkers, int(self.function.get()), float(self.c1.get()), float(self.c2.get()), segm_method, self.bordersValue.get())
+  #   self.destroyDefaultWindows()
+  #   # label_img : 1 no objeto e 2 no fundo
 
-    if(label_img is not None and border_img is not None and np.max(label_img) != 0):
+  #   if(label_img is not None and border_img is not None and np.max(label_img) != 0):
 
-      # label_img_bg : mascara com 0 no objeto e 255 no fundo
-      if(np.max(label_img)-1 != 0):
-        label_img_bg = (label_img-1) * (255/(np.max(label_img)-1)) 
-      else:
-        label_img_bg = label_img
-      label_img_bg = np.uint8(label_img_bg)
+  #     # label_img_bg : mascara com 0 no objeto e 255 no fundo
+  #     if(np.max(label_img)-1 != 0):
+  #       label_img_bg = (label_img-1) * (255/(np.max(label_img)-1)) 
+  #     else:
+  #       label_img_bg = label_img
+  #     label_img_bg = np.uint8(label_img_bg)
       
-      # label_img_bg : mascara com 255 no objeto e 0 no fundo
-      label_img_fg = 255 - label_img_bg
-      label_img_fg = np.uint8(label_img_fg)
+  #     # label_img_bg : mascara com 255 no objeto e 0 no fundo
+  #     label_img_fg = 255 - label_img_bg
+  #     label_img_fg = np.uint8(label_img_fg)
       
-      # label_img : 127 no objeto e 255 no fundo
-      label_img = (label_img * 255)/np.max(label_img)
-      label_img = np.uint8(label_img)
+  #     # label_img : 127 no objeto e 255 no fundo
+  #     label_img = (label_img * 255)/np.max(label_img)
+  #     label_img = np.uint8(label_img)
 
-      # mascara para o foregorund
-      img_fg = np.zeros([label_img.shape[0],label_img.shape[1],3],dtype=np.uint8)
+  #     # mascara para o foregorund
+  #     img_fg = np.zeros([label_img.shape[0],label_img.shape[1],3],dtype=np.uint8)
       
-      # aumenta o vermelho e o verde, mantem o azul
-      img_fg[:,:,0] = img[:,:,0]*0.2
-      img_fg[:,:,1] = img[:,:,1]*0.2
+  #     # aumenta o vermelho e o verde, mantem o azul
+  #     img_fg[:,:,0] = img[:,:,0]*0.2
+  #     img_fg[:,:,1] = img[:,:,1]*0.2
 
-      img_fg[:,:,0] = cv2.bitwise_and(img_fg[:,:,0], label_img_fg)
-      img_fg[:,:,1] = cv2.bitwise_and(img_fg[:,:,1], label_img_fg)
-      img_fg[:,:,2] = cv2.bitwise_and(img[:,:,2], label_img_fg)
+  #     img_fg[:,:,0] = cv2.bitwise_and(img_fg[:,:,0], label_img_fg)
+  #     img_fg[:,:,1] = cv2.bitwise_and(img_fg[:,:,1], label_img_fg)
+  #     img_fg[:,:,2] = cv2.bitwise_and(img[:,:,2], label_img_fg)
 
-      # mascara para o background
-      img_bg = np.zeros([label_img.shape[0],label_img.shape[1],3],dtype=np.uint8)
+  #     # mascara para o background
+  #     img_bg = np.zeros([label_img.shape[0],label_img.shape[1],3],dtype=np.uint8)
 
-      # aumenta R e diminui G e B no background
-      img_bg[:,:,1] = img[:,:,1]*0.2
-      img_bg[:,:,2] = img[:,:,2]*0.2
+  #     # aumenta R e diminui G e B no background
+  #     img_bg[:,:,1] = img[:,:,1]*0.2
+  #     img_bg[:,:,2] = img[:,:,2]*0.2
 
-      img_bg[:,:,0] = cv2.bitwise_and(img[:,:,0], label_img_bg)
-      img_bg[:,:,1] = cv2.bitwise_and(img_bg[:,:,1], label_img_bg)
-      img_bg[:,:,2] = cv2.bitwise_and(img_bg[:,:,2], label_img_bg)
+  #     img_bg[:,:,0] = cv2.bitwise_and(img[:,:,0], label_img_bg)
+  #     img_bg[:,:,1] = cv2.bitwise_and(img_bg[:,:,1], label_img_bg)
+  #     img_bg[:,:,2] = cv2.bitwise_and(img_bg[:,:,2], label_img_bg)
 
-      segm_img = cv2.bitwise_or(img_fg, img_bg)
+  #     segm_img = cv2.bitwise_or(img_fg, img_bg)
 
-      orig_bg = cv2.bitwise_and(img, img, mask=label_img_bg)
-      only_fg_img = cv2.bitwise_or(img_fg, orig_bg)
+  #     orig_bg = cv2.bitwise_and(img, img, mask=label_img_bg)
+  #     only_fg_img = cv2.bitwise_or(img_fg, orig_bg)
 
-      orig_fg = cv2.bitwise_and(img, img, mask=label_img_fg)
-      only_bg_img = cv2.bitwise_or(img_bg, orig_fg)
+  #     orig_fg = cv2.bitwise_and(img, img, mask=label_img_fg)
+  #     only_bg_img = cv2.bitwise_or(img_bg, orig_fg)
       
-      # convert from opencv to PIL
-      border_img = Image.fromarray(border_img) 
-      label_img = Image.fromarray(label_img) 
-      segm_img = Image.fromarray(segm_img) 
-      only_fg_img = Image.fromarray(only_fg_img) 
-      only_bg_img = Image.fromarray(only_bg_img) 
-      img = Image.fromarray(img) 
+  #     # convert from opencv to PIL
+  #     border_img = Image.fromarray(border_img) 
+  #     label_img = Image.fromarray(label_img) 
+  #     segm_img = Image.fromarray(segm_img) 
+  #     only_fg_img = Image.fromarray(only_fg_img) 
+  #     only_bg_img = Image.fromarray(only_bg_img) 
+  #     img = Image.fromarray(img) 
 
-      self.appLabels,self.winLabels = self.newDefaultImageWindow(label_img, 'Labels', 'Labels', "Could not read the labeled image.")
-      if(self.labels.get() == 0):
-        self.appLabels.hide()
+  #     self.appLabels,self.winLabels = self.newDefaultImageWindow(label_img, 'Labels', 'Labels', "Could not read the labeled image.")
+  #     if(self.labels.get() == 0):
+  #       self.appLabels.hide()
 
-      self.appBorders,self.winBorders = self.newDefaultImageWindow(border_img, 'Borders', 'Borders', "Could not read the image borders.")
-      if(self.borders.get() == 0):
-        self.appBorders.hide()
+  #     self.appBorders,self.winBorders = self.newDefaultImageWindow(border_img, 'Borders', 'Borders', "Could not read the image borders.")
+  #     if(self.borders.get() == 0):
+  #       self.appBorders.hide()
 
-      self.appSegm,self.winSegm = self.newSegmentationWindow(segm_img, only_fg_img, only_bg_img, img, 'Segmentation', 'Segmentation', "Could not read the image segmentation.")
-      if(self.segm.get() == 0):
-        self.appSegm.hide()
+  #     self.appSegm,self.winSegm = self.newSegmentationWindow(segm_img, only_fg_img, only_bg_img, img, 'Segmentation', 'Segmentation', "Could not read the image segmentation.")
+  #     if(self.segm.get() == 0):
+  #       self.appSegm.hide()
         
-    else:
-      messagebox.showerror("Error", "Could not read the image.")
+  #   else:
+  #     messagebox.showerror("Error", "Could not read the image.")
 
     
-  def runWatershed(self):
-    if(self.appImage == None or self.appImage.close == True):
-      messagebox.showerror("Error", "It's necessary to upload at least one image.")
-      return
+  # def runWatershed(self):
+  #   if(self.appImage == None or self.appImage.close == True):
+  #     messagebox.showerror("Error", "It's necessary to upload at least one image.")
+  #     return
 
-    original_image = np.array(self.appImage.getCurrentImage()) # converting to opencv
-    if(len(original_image.shape) == 2):
-      original_image = np.stack((original_image,)*3, axis=-1)
+  #   original_image = np.array(self.appImage.getCurrentImage()) # converting to opencv
+  #   if(len(original_image.shape) == 2):
+  #     original_image = np.stack((original_image,)*3, axis=-1)
     
 
-    # markers will store the user provided information: 
-    # first channel (red) corresponds to background
-    # second channel (green) corresponds to foreground
-    markers = np.zeros_like(original_image)
-    self.appImage.getMarkers()
+  #   # markers will store the user provided information: 
+  #   # first channel (red) corresponds to background
+  #   # second channel (green) corresponds to foreground
+  #   markers = np.zeros_like(original_image)
+  #   self.appImage.getMarkers()
 
-    obj_coords = 0
-    for size in self.appImage.markers_sizes[0:self.appImage.objMarkers]:
-      obj_coords += size
+  #   obj_coords = 0
+  #   for size in self.appImage.markers_sizes[0:self.appImage.objMarkers]:
+  #     obj_coords += size
 
-    for [x,y] in self.appImage.markers[0:obj_coords]:
-      markers[y-1:y+1, x-1:x+1, :]= (0,1,0) # green marker : object / white
+  #   for [x,y] in self.appImage.markers[0:obj_coords]:
+  #     markers[y-1:y+1, x-1:x+1, :]= (0,1,0) # green marker : object / white
 
-    for [x,y] in self.appImage.markers[obj_coords::]:
-      markers[y-1:y+1, x-1:x+1, :]= (1,0,0) # red marker : background / black
+  #   for [x,y] in self.appImage.markers[obj_coords::]:
+  #     markers[y-1:y+1, x-1:x+1, :]= (1,0,0) # red marker : background / black
 
-    # compute binary segmentation from the two markers
-    label_img_fg = hg.binary_labelisation_from_markers(self.tree, markers[:,:,1], markers[:,:,0])
-    label_img_fg = label_img_fg * 255
-    label_img_fg = label_img_fg.astype(np.uint8)
+  #   # compute binary segmentation from the two markers
+  #   label_img_fg = hg.binary_labelisation_from_markers(self.tree, markers[:,:,1], markers[:,:,0])
+  #   label_img_fg = label_img_fg * 255
+  #   label_img_fg = label_img_fg.astype(np.uint8)
 
-    borders = cv2.bitwise_or(original_image, original_image, mask=label_img_fg)
+  #   borders = cv2.bitwise_or(original_image, original_image, mask=label_img_fg)
     
-    label_img_bg = cv2.bitwise_not(label_img_fg) # object = black , background = white
+  #   label_img_bg = cv2.bitwise_not(label_img_fg) # object = black , background = white
     
-    sm = cv2.bitwise_or(self.sm, self.sm, mask=label_img_bg)
-    borders = cv2.bitwise_or(borders, sm)
+  #   sm = cv2.bitwise_or(self.sm, self.sm, mask=label_img_bg)
+  #   borders = cv2.bitwise_or(borders, sm)
 
-    label_img = 1 + label_img_bg/255
-    label_img = (label_img * 255)/np.max(label_img)
-    label_img = np.uint8(label_img)
+  #   label_img = 1 + label_img_bg/255
+  #   label_img = (label_img * 255)/np.max(label_img)
+  #   label_img = np.uint8(label_img)
     
-    # mantem os canais da imagem, mas apenas no foreground
-    img_fg = np.zeros([original_image.shape[0],original_image.shape[1],3],dtype=np.uint8)
+  #   # mantem os canais da imagem, mas apenas no foreground
+  #   img_fg = np.zeros([original_image.shape[0],original_image.shape[1],3],dtype=np.uint8)
     
-    img = np.uint8(original_image)
+  #   img = np.uint8(original_image)
 
-    # aumenta o vermelho e o verde, mantem o azul
-    img_fg[:,:,0] = img[:,:,0]*0.2
-    img_fg[:,:,1] = img[:,:,1]*0.2
+  #   # aumenta o vermelho e o verde, mantem o azul
+  #   img_fg[:,:,0] = img[:,:,0]*0.2
+  #   img_fg[:,:,1] = img[:,:,1]*0.2
 
-    img_fg[:,:,0] = cv2.bitwise_and(img_fg[:,:,0], label_img_fg)
-    img_fg[:,:,1] = cv2.bitwise_and(img_fg[:,:,1], label_img_fg)
-    img_fg[:,:,2] = cv2.bitwise_and(img[:,:,2], label_img_fg)
+  #   img_fg[:,:,0] = cv2.bitwise_and(img_fg[:,:,0], label_img_fg)
+  #   img_fg[:,:,1] = cv2.bitwise_and(img_fg[:,:,1], label_img_fg)
+  #   img_fg[:,:,2] = cv2.bitwise_and(img[:,:,2], label_img_fg)
 
-    # mascara para o background
-    img_bg = np.zeros([label_img.shape[0],label_img.shape[1],3],dtype=np.uint8)
+  #   # mascara para o background
+  #   img_bg = np.zeros([label_img.shape[0],label_img.shape[1],3],dtype=np.uint8)
 
-    # aumenta R e diminui G e B no background
-    img_bg[:,:,1] = img[:,:,1]*0.2
-    img_bg[:,:,2] = img[:,:,2]*0.2
+  #   # aumenta R e diminui G e B no background
+  #   img_bg[:,:,1] = img[:,:,1]*0.2
+  #   img_bg[:,:,2] = img[:,:,2]*0.2
 
-    img_bg[:,:,0] = cv2.bitwise_and(img[:,:,0], label_img_bg)
-    img_bg[:,:,1] = cv2.bitwise_and(img_bg[:,:,1], label_img_bg)
-    img_bg[:,:,2] = cv2.bitwise_and(img_bg[:,:,2], label_img_bg)
+  #   img_bg[:,:,0] = cv2.bitwise_and(img[:,:,0], label_img_bg)
+  #   img_bg[:,:,1] = cv2.bitwise_and(img_bg[:,:,1], label_img_bg)
+  #   img_bg[:,:,2] = cv2.bitwise_and(img_bg[:,:,2], label_img_bg)
 
-    segm_img = cv2.bitwise_or(img_fg, img_bg)
+  #   segm_img = cv2.bitwise_or(img_fg, img_bg)
 
-    orig_bg = cv2.bitwise_and(img, img, mask=label_img_bg)
-    only_fg_img = cv2.bitwise_or(img_fg, orig_bg)
+  #   orig_bg = cv2.bitwise_and(img, img, mask=label_img_bg)
+  #   only_fg_img = cv2.bitwise_or(img_fg, orig_bg)
 
-    orig_fg = cv2.bitwise_and(img, img, mask=label_img_fg)
-    only_bg_img = cv2.bitwise_or(img_bg, orig_fg)
+  #   orig_fg = cv2.bitwise_and(img, img, mask=label_img_fg)
+  #   only_bg_img = cv2.bitwise_or(img_bg, orig_fg)
 
-    self.destroyDefaultWindows()
+  #   self.destroyDefaultWindows()
 
-    # convert from opencv to PIL
-    borders = Image.fromarray(borders) 
-    label_img = Image.fromarray(label_img) 
-    segm_img = Image.fromarray(segm_img) 
-    only_fg_img = Image.fromarray(only_fg_img) 
-    only_bg_img = Image.fromarray(only_bg_img) 
-    img = Image.fromarray(img) 
+  #   # convert from opencv to PIL
+  #   borders = Image.fromarray(borders) 
+  #   label_img = Image.fromarray(label_img) 
+  #   segm_img = Image.fromarray(segm_img) 
+  #   only_fg_img = Image.fromarray(only_fg_img) 
+  #   only_bg_img = Image.fromarray(only_bg_img) 
+  #   img = Image.fromarray(img) 
 
-    self.appLabels,self.winLabels = self.newDefaultImageWindow(label_img, 'Labels', 'Labels', "Could not read the labeled image.")
-    if(self.labels.get() == 0):
-      self.appLabels.hide()
+  #   self.appLabels,self.winLabels = self.newDefaultImageWindow(label_img, 'Labels', 'Labels', "Could not read the labeled image.")
+  #   if(self.labels.get() == 0):
+  #     self.appLabels.hide()
 
-    self.appBorders,self.winBorders = self.newDefaultImageWindow(borders, 'Borders', 'Borders', "Could not read the image borders.")
-    if(self.borders.get() == 0):
-      self.appBorders.hide()
+  #   self.appBorders,self.winBorders = self.newDefaultImageWindow(borders, 'Borders', 'Borders', "Could not read the image borders.")
+  #   if(self.borders.get() == 0):
+  #     self.appBorders.hide()
 
-    self.appSegm,self.winSegm = self.newSegmentationWindow(segm_img, only_fg_img, only_bg_img, img, 'Segmentation', 'Segmentation', "Could not read the image segmentation.")
-    if(self.segm.get() == 0):
-      self.appSegm.hide()
+  #   self.appSegm,self.winSegm = self.newSegmentationWindow(segm_img, only_fg_img, only_bg_img, img, 'Segmentation', 'Segmentation', "Could not read the image segmentation.")
+  #   if(self.segm.get() == 0):
+  #     self.appSegm.hide()
 
 
-  # button event: Save image from appSegmentation window 
-  def saveSegm(self):
-    if(self.appSegm is not None):
-      folder_selected = filedialog.asksaveasfilename(initialdir = "./",title = "Save file",filetypes = (("jpeg files","*.jpg"), ("png files","*.png"),("all files","*.*")))
-      if(len(folder_selected) != 0):
-        self.appSegm.currentImage.save(folder_selected)
-    else:
-      messagebox.showerror("Error", "No segmentation founded.")
-      return
+  # # button event: Save image from appSegmentation window 
+  # def saveSegm(self):
+  #   if(self.appSegm is not None):
+  #     folder_selected = filedialog.asksaveasfilename(initialdir = "./",title = "Save file",filetypes = (("jpeg files","*.jpg"), ("png files","*.png"),("all files","*.*")))
+  #     if(len(folder_selected) != 0):
+  #       self.appSegm.currentImage.save(folder_selected)
+  #   else:
+  #     messagebox.showerror("Error", "No segmentation founded.")
+  #     return
 
-  # button event: Save image from appBorders window 
-  def saveBorders(self):
-    if(self.appBorders is not None):
-      folder_selected = filedialog.asksaveasfilename(initialdir = "./",title = "Save file",filetypes = (("jpeg files","*.jpg"), ("png files","*.png"),("all files","*.*")))
-      if(len(folder_selected) != 0):
-        image = self.appBorders.currentImage.convert('RGB')
-        image.save(folder_selected)
-    else:
-      messagebox.showerror("Error", "No image borders founded.")
-      return
+  # # button event: Save image from appBorders window 
+  # def saveBorders(self):
+  #   if(self.appBorders is not None):
+  #     folder_selected = filedialog.asksaveasfilename(initialdir = "./",title = "Save file",filetypes = (("jpeg files","*.jpg"), ("png files","*.png"),("all files","*.*")))
+  #     if(len(folder_selected) != 0):
+  #       image = self.appBorders.currentImage.convert('RGB')
+  #       image.save(folder_selected)
+  #   else:
+  #     messagebox.showerror("Error", "No image borders founded.")
+  #     return
 
-  # button event: Save image from appLabels window 
-  def saveLabels(self):
-    if(self.appLabels is not None):
-      folder_selected = filedialog.asksaveasfilename(initialdir = "./",title = "Save file",filetypes = (("jpeg files","*.jpg"), ("png files","*.png"),("all files","*.*")))
-      if(len(folder_selected) != 0):
-        self.appLabels.currentImage.save(folder_selected)
-    else:
-      messagebox.showerror("Error", "No image labels founded.")
-      return
+  # # button event: Save image from appLabels window 
+  # def saveLabels(self):
+  #   if(self.appLabels is not None):
+  #     folder_selected = filedialog.asksaveasfilename(initialdir = "./",title = "Save file",filetypes = (("jpeg files","*.jpg"), ("png files","*.png"),("all files","*.*")))
+  #     if(len(folder_selected) != 0):
+  #       self.appLabels.currentImage.save(folder_selected)
+  #   else:
+  #     messagebox.showerror("Error", "No image labels founded.")
+  #     return
 
-  # checkbox event: Open or close the segmentation window
-  def setCheckSegm(self):
-    if(self.appSegm != None):
-      if(self.appSegm.close):
-        self.appSegm = None
+  # # checkbox event: Open or close the segmentation window
+  # def setCheckSegm(self):
+  #   if(self.appSegm != None):
+  #     if(self.appSegm.close):
+  #       self.appSegm = None
     
-      elif(self.segm.get() == 1):
-        self.appSegm.show()
+  #     elif(self.segm.get() == 1):
+  #       self.appSegm.show()
 
-      else:
-        self.appSegm.hide()
+  #     else:
+  #       self.appSegm.hide()
 
-  # checkbox event: Open or close the borders window
-  def setCheckBorders(self):
-    if(self.appBorders != None):
-      if(self.appBorders.close):
-        self.appBorders = None
+  # # checkbox event: Open or close the borders window
+  # def setCheckBorders(self):
+  #   if(self.appBorders != None):
+  #     if(self.appBorders.close):
+  #       self.appBorders = None
 
-      elif(self.borders.get() == 1):
-        self.appBorders.show()
+  #     elif(self.borders.get() == 1):
+  #       self.appBorders.show()
 
-      else:
-        self.appBorders.hide()
+  #     else:
+  #       self.appBorders.hide()
 
-  # checkbox event: Open or close the labels window
-  def setCheckLabels(self):
-    if(self.appLabels != None):
-      if(self.appLabels.close):
-        self.appLabels = None
+  # # checkbox event: Open or close the labels window
+  # def setCheckLabels(self):
+  #   if(self.appLabels != None):
+  #     if(self.appLabels.close):
+  #       self.appLabels = None
     
-      elif(self.labels.get() == 1):
-        self.appLabels.show()
+  #     elif(self.labels.get() == 1):
+  #       self.appLabels.show()
 
-      else:
-        self.appLabels.hide()
+  #     else:
+  #       self.appLabels.hide()
 
   
-  # create and open a new window with the class DefaultPage
-  def newDefaultImageWindow(self, img, imageName, titlePage, errorMessage):
-    wind = tk.Toplevel(self.root)
-    app = DefaultImageWindow(wind, titlePage, self)
-    app.setImage(imageName, img)
-    if(app is None or app.currentImage is None):
-      messagebox.showerror("Error", errorMessage)
-    return app,wind
+  # # create and open a new window with the class DefaultPage
+  # def newDefaultImageWindow(self, img, imageName, titlePage, errorMessage):
+  #   wind = tk.Toplevel(self.root)
+  #   app = DefaultImageWindow(wind, titlePage, self)
+  #   app.setImage(imageName, img)
+  #   if(app is None or app.currentImage is None):
+  #     messagebox.showerror("Error", errorMessage)
+  #   return app,wind
   
-  def newSegmentationWindow(self, segm_img, img_fg, img_bg, orig_img, imageName, titlePage, errorMessage):
-    wind = tk.Toplevel(self.root)
-    app = SegmentationWindow(wind, titlePage, self)
-    app.setImage(segm_img, img_fg, img_bg, orig_img, imageName)
-    if(app is None or app.currentImage is None):
-      messagebox.showerror("Error", errorMessage)
-    return app,wind
+  # def newSegmentationWindow(self, segm_img, img_fg, img_bg, orig_img, imageName, titlePage, errorMessage):
+  #   wind = tk.Toplevel(self.root)
+  #   app = SegmentationWindow(wind, titlePage, self)
+  #   app.setImage(segm_img, img_fg, img_bg, orig_img, imageName)
+  #   if(app is None or app.currentImage is None):
+  #     messagebox.showerror("Error", errorMessage)
+  #   return app,wind
 
-  # create and open a new window with the class AppImage
+  # # create and open a new window with the class AppImage
   def newAppImageWindow(self, files, errorMessage):
     wind = tk.Toplevel(self.root)
     app = AppImage(wind, self)
@@ -1311,7 +1307,7 @@ class SettingsWindow(DefaultWindow):
     return app,wind
 
 
-  # button event: Try load all imagens located in a folder selected by user
+  # # button event: Try load all imagens located in a folder selected by user
   def loadDir(self):
     folder_selected = filedialog.askdirectory()
     if(len(folder_selected) != 0):
@@ -1322,7 +1318,7 @@ class SettingsWindow(DefaultWindow):
       [files.append(folder_selected+"/"+fileName) for fileName in os.listdir(folder_selected)]
       self.appImage,self.windImage = self.newAppImageWindow(files, "Could not read any image.")
 
-  # button event: Try load all imagens selected by user
+  # # button event: Try load all imagens selected by user
   def loadFile(self):
     folder_selected = filedialog.askopenfilenames()
     if(len(folder_selected) != 0):
@@ -1332,7 +1328,7 @@ class SettingsWindow(DefaultWindow):
       self.appImage,self.windImage = self.newAppImageWindow(folder_selected, "Could not read any image.")
 
 
-  # destroy default (segmentation, borders and labels) windows
+  # # destroy default (segmentation, borders and labels) windows
   def destroyDefaultWindows(self):
     if(self.appSegm != None):
       self.appSegm.destructor()
@@ -1345,15 +1341,15 @@ class SettingsWindow(DefaultWindow):
       self.appLabels = None
     
 
-  # GRID seeds events
-  # Entry event (text field)
+  # # GRID seeds events
+  # # Entry event (text field)
   def setTextN0(self, event):
     value = safe_cast(safe_cast(self.n0.get(), float, 0), int, 0) # convert : string -> float -> int
     value = validValue(value, self.n0Min, self.n0Max)             # get a valid value
     self.n0.set(str(value)) # change text
     self.n0Scale.set(value) # change scale
 
-  # Scale event: Change the current value of the GRID seeds
+  # # Scale event: Change the current value of the GRID seeds
   def setN0(self, value):
     value = safe_cast(safe_cast(value, float, 0), int, 0) # convert : string -> float -> int
     value = validValue(value, self.n0Min, self.n0Max)             # get a valid value
@@ -1379,79 +1375,79 @@ class SettingsWindow(DefaultWindow):
     self.miniCanvas_circle = self.miniCanvas.create_oval(center[0]-ratio, center[1]-ratio, center[0]+ratio, center[1]+ratio, fill="black", width=0)
 
 
-  # Iterations events
-  # Entry event (text field)
+  # # Iterations events
+  # # Entry event (text field)
   def setTextIt(self, event):
     value = safe_cast(safe_cast(self.iterations.get(), float, 0), int, 0) # convert : string -> float -> int
     value = validValue(value, self.itMin, self.itMax)                     # get a valid value
     self.iterations.set(str(value))  # change text
     self.itScale.set(value)          # change scale
 
-  # Scale event: Change the current value of the iterations
+  # # Scale event: Change the current value of the iterations
   def setIt(self, value):
     value = safe_cast(safe_cast(value, float, 0), int, 0) # convert : string -> float -> int
     value = validValue(value, self.itMin, self.itMax)     # get a valid value
     self.iterations.set(str(value))   # change text
 
-  # change max and min iterations
-  def setItMax(self, itMax):
-    self.itMax = itMax
-    value = self.iterations.get()
-    if(int(value) > self.itMax):
-      value = self.itMax
+  # # change max and min iterations
+  # def setItMax(self, itMax):
+  #   self.itMax = itMax
+  #   value = self.iterations.get()
+  #   if(int(value) > self.itMax):
+  #     value = self.itMax
     
-    self.itRange = self.itMax - self.itMin
-    self.itScale.configure(to=self.itMax)
-    self.iterations.set(str(value))
-    self.itScale.set(value)
+  #   self.itRange = self.itMax - self.itMin
+  #   self.itScale.configure(to=self.itMax)
+  #   self.iterations.set(str(value))
+  #   self.itScale.set(value)
     
-  def setItMin(self, itMin):
-    self.itMin = itMin
-    value = self.iterations.get()
-    if(int(value) < self.itMin):
-      value = self.itMin
+  # def setItMin(self, itMin):
+  #   self.itMin = itMin
+  #   value = self.iterations.get()
+  #   if(int(value) < self.itMin):
+  #     value = self.itMin
 
-    self.itRange = self.itMax - self.itMin
-    self.itScale.configure(from_=self.itMin)
-    self.iterations.set(str(value))
-    self.itScale.set(value)
+  #   self.itRange = self.itMax - self.itMin
+  #   self.itScale.configure(from_=self.itMin)
+  #   self.iterations.set(str(value))
+  #   self.itScale.set(value)
  
 
-  # C1 and C2 events
-  # Entry event (text field)
+  # # C1 and C2 events
+  # # Entry event (text field)
   def setTextC1(self, event):
     value = safe_cast(self.c1.get(), float, 0.0)  # convert : string -> float
     value = validValue(value, 0.1, 1.0)           # get a valid value
     self.c1.set(str(round(value, 2))) # change text
     self.c1Scale.set(value*100)       # change scale
 
-  # Scale event: Change the current value of c1
+  # # Scale event: Change the current value of c1
   def setC1(self, value):
     value = safe_cast(value, float, 0.0)    # convert : string -> float
     value = validValue(value/100, 0.1, 1.0) # get a valid value
     self.c1.set(str(round(value, 2))) # change text
     
-  # Entry event (text field)
+  # # Entry event (text field)
   def setTextC2(self, event):
     value = safe_cast(self.c2.get(), float, 0.0)  # convert : string -> float
     value = validValue(value, 0.1, 1.0)           # get a valid value
     self.c2.set(str(round(value, 2))) # change text
     self.c2Scale.set(value*100)       # change scale
 
-  # Scale event: Change the current value of c2
+  # # Scale event: Change the current value of c2
   def setC2(self, value):
     value = safe_cast(value, float, 0.0)    # convert : string -> float
     value = validValue(value/100, 0.1, 1.0) # get a valid value
     self.c2.set(str(round(value, 2))) # change text
 
 
-  # Path-cost functions events
-  # Entry event (text field)
-  def setTextFunction(self, event):
-    self.setFunction(self.function.get())
-    return
+  # # Path-cost functions events
+  # # Entry event (text field)
+  # def setTextFunction(self, event):
+  #   self.setFunction(self.function.get())
+  #   return
 
-  # Scale event: Change the current value of function
+  # # Scale event: Change the current value of function
   def setFunction(self, value):
     value = safe_cast(value, int, 0)
     if(value < 0):
@@ -1463,7 +1459,7 @@ class SettingsWindow(DefaultWindow):
     return
 
 
-  # change the weight function for graph creation
+  # # change the weight function for graph creation
   def weightFunctionChange(self):
     if(self.appImage is not None):
       if(self.weightFunctionCombobox.get() == 'L0'):
@@ -1486,12 +1482,12 @@ class SettingsWindow(DefaultWindow):
       self.edge_weights = hg.weight_graph(self.graph, self.gradient_image, weightFunction)
       self.wsAttributeChange()
 
-  # combobox event: change the weight function for graph creation
+  # # combobox event: change the weight function for graph creation
   def weightFunctionChangeEvent(self, event):
     self.weightFunctionChange()
 
 
-  # change the watershed attribute
+  # # change the watershed attribute
   def wsAttributeChange(self):
     if(self.appImage is not None):
       if(self.wsAttributeCombobox.get() == 'Area'):
@@ -1502,7 +1498,7 @@ class SettingsWindow(DefaultWindow):
         self.tree, self.altitudes = hg.watershed_hierarchy_by_dynamics(self.graph, self.edge_weights)
     
     
-  # combobox event: change the watershed attribute
+  # # combobox event: change the watershed attribute
   def wsAttributeChangeEvent(self, event):
     self.wsAttributeChange()
 
@@ -1529,9 +1525,9 @@ class SettingsWindow(DefaultWindow):
 
   
 
-#########################################################################
-#     Image Aplication class
-#########################################################################
+# #########################################################################
+# #     Image Aplication class
+# #########################################################################
 class AppImage(DefaultImageWindow):
   def __init__(self, root, settingsPage, *args, **kwargs):
     ##-----------------------------------------
@@ -1604,15 +1600,21 @@ class AppImage(DefaultImageWindow):
     self.canvas.bind("<Control-B1-Motion>", self.ctrl_mouseMovementPressed)
     self.canvas.bind("<Control-ButtonRelease-1>", self.ctrl_mouseButtonReleased)
     
-    # add a listBox to show loaded images names and for choosen
+    # add a listBox to show loaded images names and for choosen TROCARRRRRRRRR
     # scrolling the listbox
-    self.listLabel = tk.Label(master=self.frame)
+    self.listLabel = tk.Label(master=self.frame) #trocar para listar inves de label, imagens
     self.listLabel.grid(row=0, column=1, columnspan=1, sticky=self.fill, padx=2, pady=2)
     self.createWidgets(self.listLabel)
 
     self.imagesListBox = tk.Listbox(master=self.listLabel, listvariable=self.imageNamesListBox, selectmode=tk.SINGLE)
     self.imagesListBox.grid(row=0, column=0, sticky='ns')
     self.createWidgets(self.imagesListBox)
+
+    self.text = ScrolledText(self.root, wrap=WORD)
+    self.text.grid(row=0, column=3, sticky='ns')
+    self.text.image_filenames = []
+    self.text.images = []
+    self.createWidgets(self.text)
 
     self.scrollbarList = AutoScrollbar(self.listLabel, orient='vertical')
     self.scrollbarList.grid(row=0, column=1, sticky='ns')
@@ -2020,46 +2022,69 @@ class AppImage(DefaultImageWindow):
   # create a list of images, imageNames and the variable list for the ListBox
   # Call the destructor function if no image could be read.
   def setImages(self, imageNames):
-        # Verifica se existe um caminho de imagem específico fornecido e carrega apenas essa imagem
-        if image_path is not None:
-            if os.path.isfile(image_path):
-                image = Image.open(image_path)
-                if image is not None:
-                    self.images = [image]
-                    self.imageNames = [image_path]
-                    self.imagesListBox.insert(0, image_path.split("/")[-1])
-                    self.imagesListBox.selection_set(0)
-                    self.clearImage()
-                    self.clearMarkers()
-                    self.image2Tk()
-                    self.scale_img = 1.0
-                    return
+    self.images = []
+    self.imageNames = []
+    
+    self.text.image_filenames.clear()
+    self.text.delete('1.0', END)  # Clear current contents.
+    self.text.images.clear()
 
-        self.images = []
-        self.imageNames = []
-        i = 0
+    i = 0
 
-        for imgFile in imageNames:
-            if os.path.isfile(imgFile) is True:
-                try:
-                    image = Image.open(imgFile)
-                    if image is not None:
-                        self.images.append(image)
-                        self.imageNames.append(imgFile)
-                        self.imagesListBox.insert(i, imgFile.split("/")[-1])
-                        i += 1
-                except Exception as inst:
-                    continue
+    for imgFile in imageNames:
+      if(os.path.isfile(imgFile) is True):
 
-        if len(self.images) == 0:
-            self.destructor()
-            messagebox.showerror("Error", "Could not read any image.")
+        if(imgFile.split('.')[-1] == 'dcm'):
+          dicomImg = DicomImage(imgFile)
+          image = dicomImg.getPILImage()
+          #image = dicomImg.getPILImage2()
         else:
-            self.imagesListBox.selection_set(self.i)
-            self.clearImage()
-            self.clearMarkers()
-            self.image2Tk()
-            self.scale_img = 1.0
+          try:
+            image = Image.open(imgFile)
+          except Exception as inst:
+            break
+
+        if(image is not None):
+          self.images.append(image)
+          self.imageNames.append(imgFile)
+          self.imagesListBox.insert(i, ImageTk.PhotoImage(image)) # trocar pillow para image2tk
+
+
+          self.text.insert(INSERT, imgFile+'\n')
+          self.text.image_filenames.append(imgFile)
+
+          
+          
+          # Display images in Text widget.
+          img = image.resize((64, 64), Image.ANTIALIAS)
+          img = ImageTk.PhotoImage(img)
+
+          self.text.insert(INSERT, imgFile+'\n')
+          self.text.image_create(INSERT, padx=5, pady=5, image=img)
+          self.text.images.append(img)  # Keep a reference.
+          self.text.insert(INSERT, '\n')
+
+
+          i+=1
+
+          image = np.array(image)
+          image = image.astype(np.float32)/255
+          if(len(image.shape) == 2):
+            image = np.stack((image,)*3, axis=-1)
+
+          self.gradient_list.append(self.appSettings.detector.detectEdges(image))
+          self.graph_list.append(hg.get_4_adjacency_graph(image.shape[:2]))
+          
+    if(len(self.images) == 0):
+      self.destructor()
+      messagebox.showerror("Error", "Could not read any image.")
+    else:
+      self.imagesListBox.selection_set(self.i)
+      self.clearImage()
+      self.clearMarkers()
+      self.image2Tk()
+      self.updateWatershedStructures()
+      self.scale_img = 1.0
   
 
   
@@ -2410,80 +2435,80 @@ class AppImage(DefaultImageWindow):
     return image
 
 
-#########################################################################
-#     Segmentation Window class
-#########################################################################
-class SegmentationWindow(DefaultImageWindow):
-  def __init__(self, root, titlePage, settingsPage, *args, **kwargs):
-    ##-----------------------------------------
-    ## call init method of child class
-    DefaultImageWindow.__init__(self, root, titlePage, settingsPage, *args, **kwargs)
-    ##-----------------------------------------
+# #########################################################################
+# #     Segmentation Window class
+# #########################################################################
+# class SegmentationWindow(DefaultImageWindow):
+#   def __init__(self, root, titlePage, settingsPage, *args, **kwargs):
+#     ##-----------------------------------------
+#     ## call init method of child class
+#     DefaultImageWindow.__init__(self, root, titlePage, settingsPage, *args, **kwargs)
+#     ##-----------------------------------------
 
-    # variables
-    self.blueMask = tk.IntVar()
-    self.blueMask.set(1)
+#     # variables
+#     self.blueMask = tk.IntVar()
+#     self.blueMask.set(1)
 
-    self.redMask = tk.IntVar()
-    self.redMask.set(1)
+#     self.redMask = tk.IntVar()
+#     self.redMask.set(1)
 
-    self.img_fg = None
-    self.img_bg = None
-    self.orig_img = None
-    self.imageName = None
+#     self.img_fg = None
+#     self.img_bg = None
+#     self.orig_img = None
+#     self.imageName = None
 
-    # checkboxes
-    self.masksLabelFrame = tk.LabelFrame(master=self.frame, text='Masks')
-    self.masksLabelFrame.grid(row=1, column=0, columnspan=1, sticky=self.fill, padx=6, pady=4)
-    self.createWidgets(self.masksLabelFrame)
+#     # checkboxes
+#     self.masksLabelFrame = tk.LabelFrame(master=self.frame, text='Masks')
+#     self.masksLabelFrame.grid(row=1, column=0, columnspan=1, sticky=self.fill, padx=6, pady=4)
+#     self.createWidgets(self.masksLabelFrame)
 
-    self.checkMask1 = tk.Checkbutton(master=self.masksLabelFrame, text='Blue (object)', command=self.setBlueMask, variable=self.blueMask)
-    self.checkMask1.grid(row=0, column=0, columnspan=1, sticky=tk.W, padx=0, pady=1)
-    self.createWidgets(self.checkMask1)
+#     self.checkMask1 = tk.Checkbutton(master=self.masksLabelFrame, text='Blue (object)', command=self.setBlueMask, variable=self.blueMask)
+#     self.checkMask1.grid(row=0, column=0, columnspan=1, sticky=tk.W, padx=0, pady=1)
+#     self.createWidgets(self.checkMask1)
 
-    self.checkMask2 = tk.Checkbutton(master=self.masksLabelFrame, text='Red (background)', command=self.setRedMask, variable=self.redMask)
-    self.checkMask2.grid(row=0, column=1, columnspan=1, sticky=tk.W, padx=0, pady=1)
-    self.createWidgets(self.checkMask2)
+#     self.checkMask2 = tk.Checkbutton(master=self.masksLabelFrame, text='Red (background)', command=self.setRedMask, variable=self.redMask)
+#     self.checkMask2.grid(row=0, column=1, columnspan=1, sticky=tk.W, padx=0, pady=1)
+#     self.createWidgets(self.checkMask2)
 
-  # override parent class method
-  def setImage(self, segm_img, img_fg, img_bg, orig_img, imageName):
-    self.imageName = imageName
-    self.img_fg = img_fg
-    self.img_bg = img_bg
-    self.orig_img = orig_img # RGB image
-    self.segm_img = segm_img
+#   # override parent class method
+#   def setImage(self, segm_img, img_fg, img_bg, orig_img, imageName):
+#     self.imageName = imageName
+#     self.img_fg = img_fg
+#     self.img_bg = img_bg
+#     self.orig_img = orig_img # RGB image
+#     self.segm_img = segm_img
     
-    if(self.img_fg is None or self.img_bg is None or self.orig_img is None):
-      self.destructor()
-    else:
-      self.currentImage = segm_img
-      self.image2Tk()
+#     if(self.img_fg is None or self.img_bg is None or self.orig_img is None):
+#       self.destructor()
+#     else:
+#       self.currentImage = segm_img
+#       self.image2Tk()
 
 
-  def setBlueMask(self):
-    if(self.blueMask.get() == 1 and self.redMask.get() == 1):
-      self.currentImage = self.segm_img
-    elif(self.blueMask.get() == 1 and self.redMask.get() == 0):
-      self.currentImage = self.img_fg
-    elif(self.blueMask.get() == 0 and self.redMask.get() == 1):
-      self.currentImage = self.img_bg
-    else:
-      self.currentImage = self.orig_img
+#   def setBlueMask(self):
+#     if(self.blueMask.get() == 1 and self.redMask.get() == 1):
+#       self.currentImage = self.segm_img
+#     elif(self.blueMask.get() == 1 and self.redMask.get() == 0):
+#       self.currentImage = self.img_fg
+#     elif(self.blueMask.get() == 0 and self.redMask.get() == 1):
+#       self.currentImage = self.img_bg
+#     else:
+#       self.currentImage = self.orig_img
     
-    self.image2Tk()
+#     self.image2Tk()
 
 
-  def setRedMask(self):
-    if(self.blueMask.get() == 1 and self.redMask.get() == 1):
-      self.currentImage = self.segm_img
-    elif(self.blueMask.get() == 1 and self.redMask.get() == 0):
-      self.currentImage = self.img_fg
-    elif(self.blueMask.get() == 0 and self.redMask.get() == 1):
-      self.currentImage = self.img_bg
-    else:
-      self.currentImage = self.orig_img
+#   def setRedMask(self):
+#     if(self.blueMask.get() == 1 and self.redMask.get() == 1):
+#       self.currentImage = self.segm_img
+#     elif(self.blueMask.get() == 1 and self.redMask.get() == 0):
+#       self.currentImage = self.img_fg
+#     elif(self.blueMask.get() == 0 and self.redMask.get() == 1):
+#       self.currentImage = self.img_bg
+#     else:
+#       self.currentImage = self.orig_img
     
-    self.image2Tk()
+#     self.image2Tk()
 
 
 def main(): 
