@@ -1,7 +1,7 @@
 import PySimpleGUI as sg
 import io, os
 from PIL import Image
-
+ 
 file_types = [
     ("JPEG (*.jpg)", "*.jpg"),
     ("All files (*.*)", "*.*")
